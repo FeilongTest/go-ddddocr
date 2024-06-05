@@ -1,6 +1,6 @@
 # ddddocr-for-golang
 
-## 本项目提供golang版本的ddddocr简单demo，基于[sml2h3](https://github.com/sml2h3)开源的[ddddocr](https://github.com/sml2h3/ddddocr)构建。
+## 本项目提供golang版本的ddddocr简单demo，基于[sml2h3](https://github.com/sml2h3)开源的[ddddocr](https://github.com/sml2h3/ddddocr/tree/be21cf6f2963ba446d5c74a87f243cb4b864da8a)构建。
 
 1. 本项目提供base64转图片后识别验证码的功能
 2. 用于学习golang的onnx模型调用，仅实现了ocr部分，支持ddddocr项目中列出的所有文字验证码，无opencv相关功能
