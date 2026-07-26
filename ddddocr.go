@@ -36,6 +36,14 @@ type Config struct {
 	// 留空时自动探测：环境变量 ONNXRUNTIME_SHARED_LIBRARY_PATH >
 	// 可执行文件所在目录 > 当前工作目录。
 	OnnxRuntimeLibPath string
+	// IntraOpNumThreads 设置单个会话算子内并行线程数（可选，<=0 用默认）。
+	// 做实例池时建议设为 1，使「池大小 × 每会话线程数」不超过 CPU 核数，
+	// 避免线程超订。
+	IntraOpNumThreads int
+	// InterOpNumThreads 设置单个会话算子间并行线程数（可选，<=0 用默认）。
+	// 仅在执行模式为并行时生效；做实例池时建议同样设为 1，
+	// 进一步收敛每会话线程数。
+	InterOpNumThreads int
 }
 
 // Recognizer 封装一个可复用的 OCR 会话。模型只需加载一次，
@@ -67,11 +75,34 @@ func New(cfg Config) (*Recognizer, error) {
 		}
 	}
 
+	if cfg.IntraOpNumThreads > 0 || cfg.InterOpNumThreads > 0 {
+		opts, err := ort.NewSessionOptions()
+		if err != nil {
+			return nil, fmt.Errorf("ddddocr: 创建会话选项失败: %w", err)
+		}
+		defer opts.Destroy()
+		if cfg.IntraOpNumThreads > 0 {
+			if err := opts.SetIntraOpNumThreads(cfg.IntraOpNumThreads); err != nil {
+				return nil, fmt.Errorf("ddddocr: 设置 IntraOp 线程数失败: %w", err)
+			}
+		}
+		if cfg.InterOpNumThreads > 0 {
+			if err := opts.SetInterOpNumThreads(cfg.InterOpNumThreads); err != nil {
+				return nil, fmt.Errorf("ddddocr: 设置 InterOp 线程数失败: %w", err)
+			}
+		}
+		return newWithOptions(cfg.ModelPath, opts)
+	}
+	return newWithOptions(cfg.ModelPath, nil)
+}
+
+// newWithOptions 用给定的会话选项加载模型并构建 Recognizer。
+func newWithOptions(modelPath string, opts *ort.SessionOptions) (*Recognizer, error) {
 	session, err := ort.NewDynamicAdvancedSession(
-		cfg.ModelPath,
+		modelPath,
 		[]string{"input1"}, // 输入节点名（见模型 metadata）
 		[]string{"output"}, // 输出节点名
-		nil,
+		opts,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ddddocr: 创建会话失败: %w", err)
